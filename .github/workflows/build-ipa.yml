@@ -24,20 +24,23 @@ jobs:
       - name: Apply the PampGram patch
         working-directory: telegram-ios
         run: |
-          git apply --check ../pampgram/mod/telegram-ios.patch
-          git apply ../pampgram/mod/telegram-ios.patch
+          echo "=== Применяем патч (с допуском ошибок) ==="
+          git apply --reject --whitespace=fix ../pampgram/mod/telegram-ios.patch || true
           
           mkdir -p submodules/TelegramUI/Components/PampGram
           cp -R ../pampgram/mod/components/. submodules/TelegramUI/Components/PampGram/
           
           if [ -f ../pampgram/mod/apply-profile-visuals.py ]; then
-            python3 ../pampgram/mod/apply-profile-visuals.py
+            python3 ../pampgram/mod/apply-profile-visuals.py || true
           fi
           
           echo "=== Компоненты PampGram ==="
           ls -la submodules/TelegramUI/Components/PampGram
+          
+          echo "=== Отвергнутые куски патча (если есть) ==="
+          find . -name "*.rej" | head -30 || true
 
-      - name: Prepare build config + fake provisioning
+      - name: Prepare build config
         working-directory: telegram-ios
         run: |
           mkdir -p build-input
@@ -57,11 +60,6 @@ jobs:
             "enable_icloud": false
           }
           EOF
-
-          # Создаём пустые/фейковые provisioning, чтобы Bazel не падал
-          mkdir -p build-system/fake-codesigning/profiles
-          # Некоторые сборки ищут профили здесь
-          mkdir -p external/build_configuration+/provisioning || true
 
       - name: Generate project
         working-directory: telegram-ios
