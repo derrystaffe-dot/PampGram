@@ -9,30 +9,34 @@ jobs:
     timeout-minutes: 350
 
     steps:
-      - name: Check out PampGram (patch + PhantomGiftKit)
+      - name: Check out PampGram
         uses: actions/checkout@v4
         with:
           path: pampgram
 
-      - name: Check out Telegram-iOS
+      - name: Check out Telegram-iOS (old version)
         run: |
-          git clone --recursive --shallow-submodules -j8 \
-            https://github.com/TelegramMessenger/Telegram-iOS.git telegram-ios
+          git clone --recursive -j8 https://github.com/TelegramMessenger/Telegram-iOS.git telegram-ios
           cd telegram-ios
-          git checkout release-12.9.2
+          git checkout release-12.8
           git submodule update --init --recursive
 
       - name: Apply the PampGram patch
         working-directory: telegram-ios
         run: |
-          git apply --check ../pampgram/mod/telegram-ios.patch || true
-          git apply --reject --whitespace=fix ../pampgram/mod/telegram-ios.patch || true
+          echo "=== Пробуем применить патч ==="
+          git apply --check ../pampgram/mod/telegram-ios.patch
+          git apply ../pampgram/mod/telegram-ios.patch
+          
           mkdir -p submodules/TelegramUI/Components/PampGram
           cp -R ../pampgram/mod/components/. submodules/TelegramUI/Components/PampGram/
+          
           if [ -f ../pampgram/mod/apply-profile-visuals.py ]; then
-            python3 ../pampgram/mod/apply-profile-visuals.py || true
+            python3 ../pampgram/mod/apply-profile-visuals.py
           fi
-          ls -1 submodules/TelegramUI/Components/PampGram
+          
+          echo "=== Компоненты PampGram ==="
+          ls -la submodules/TelegramUI/Components/PampGram
 
       - name: Prepare build config
         working-directory: telegram-ios
@@ -55,7 +59,7 @@ jobs:
           }
           EOF
 
-      - name: Build IPA
+      - name: Build
         working-directory: telegram-ios
         run: |
           python3 build-system/Make/Make.py \
@@ -64,7 +68,7 @@ jobs:
             --configurationPath=build-input/data.json \
             --configuration=release_arm64 \
             --buildNumber=10000 \
-            --xcodeManagedCodesigning || true
+            --xcodeManagedCodesigning
 
           python3 build-system/Make/Make.py \
             --overrideXcodeVersion \
@@ -72,27 +76,28 @@ jobs:
             --configurationPath=build-input/data.json \
             --configuration=release_arm64 \
             --buildNumber=10000 \
-            --xcodeManagedCodesigning || true
+            --xcodeManagedCodesigning
 
       - name: Package IPA
         working-directory: telegram-ios
         run: |
-          APP_PATH=$(find bazel-out -name "Telegram.app" -type d | head -1 || true)
-          echo "Found app at: $APP_PATH"
+          APP_PATH=$(find bazel-out -name "Telegram.app" -type d | head -1)
+          echo "Found app: $APP_PATH"
           
-          if [ -n "$APP_PATH" ]; then
-            mkdir -p Payload
-            cp -R "$APP_PATH" Payload/
-            zip -r Telegram.ipa Payload
-            ls -lh Telegram.ipa
-          else
-            echo "Telegram.app not found"
-            find bazel-out -name "*.app" -type d | head -20 || true
+          if [ -z "$APP_PATH" ]; then
+            echo "Telegram.app не найден"
+            find bazel-out -name "*.app" -type d | head -20
+            exit 1
           fi
+          
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r Telegram.ipa Payload
+          ls -lh Telegram.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: PampGram-ipa
           path: telegram-ios/Telegram.ipa
-          if-no-files-found: warn
+          if-no-files-found: error
