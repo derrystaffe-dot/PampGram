@@ -43,21 +43,10 @@ jobs:
           mkdir -p build-input
           mkdir -p build-system/fake-codesigning/profiles
           
-          # Создаём все возможные профили, которые могут потребоваться
-          for name in \
-            Telegram \
-            NotificationService \
-            NotificationContent \
-            Share \
-            BroadcastUpload \
-            Widget \
-            Intents \
-            ; do
+          for name in Telegram NotificationService NotificationContent Share BroadcastUpload Widget Intents; do
             touch "build-system/fake-codesigning/profiles/${name}.mobileprovision"
-            touch "build-system/fake-codesigning/profiles/${name}.mobileprovision.plist" || true
           done
           
-          # Конфиг
           cat > build-input/data.json << 'EOF'
           {
             "bundle_id": "org.telegram.Telegram-iOS",
@@ -74,8 +63,6 @@ jobs:
             "enable_icloud": false
           }
           EOF
-          
-          ls -la build-system/fake-codesigning/profiles/
 
       - name: Generate project
         working-directory: telegram-ios
@@ -106,7 +93,7 @@ jobs:
           echo "Found app: $APP_PATH"
           
           if [ -z "$APP_PATH" ]; then
-            echo "Telegram.app не найден. Ищем любые .app:"
+            echo "Telegram.app не найден"
             find bazel-out -name "*.app" -type d | head -30 || true
             exit 1
           fi
