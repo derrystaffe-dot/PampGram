@@ -37,18 +37,27 @@ jobs:
           echo "=== Компоненты PampGram ==="
           ls -la submodules/TelegramUI/Components/PampGram
 
-      - name: Prepare fake codesigning + config
+      - name: Prepare fake codesigning
         working-directory: telegram-ios
         run: |
-          # Готовим фейковые профили
-          mkdir -p build-system/fake-codesigning/profiles
           mkdir -p build-input
+          mkdir -p build-system/fake-codesigning/profiles
           
-          # Создаём пустые mobileprovision-файлы, которые требует BUILD
-          for name in NotificationService NotificationContent Share BroadcastUpload; do
+          # Создаём все возможные профили, которые могут потребоваться
+          for name in \
+            Telegram \
+            NotificationService \
+            NotificationContent \
+            Share \
+            BroadcastUpload \
+            Widget \
+            Intents \
+            ; do
             touch "build-system/fake-codesigning/profiles/${name}.mobileprovision"
+            touch "build-system/fake-codesigning/profiles/${name}.mobileprovision.plist" || true
           done
           
+          # Конфиг
           cat > build-input/data.json << 'EOF'
           {
             "bundle_id": "org.telegram.Telegram-iOS",
@@ -65,6 +74,8 @@ jobs:
             "enable_icloud": false
           }
           EOF
+          
+          ls -la build-system/fake-codesigning/profiles/
 
       - name: Generate project
         working-directory: telegram-ios
