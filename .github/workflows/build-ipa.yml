@@ -24,7 +24,7 @@ jobs:
       - name: Apply the PampGram patch
         working-directory: telegram-ios
         run: |
-          echo "=== Применяем патч (с допуском ошибок) ==="
+          echo "=== Применяем патч ==="
           git apply --reject --whitespace=fix ../pampgram/mod/telegram-ios.patch || true
           
           mkdir -p submodules/TelegramUI/Components/PampGram
@@ -36,14 +36,19 @@ jobs:
           
           echo "=== Компоненты PampGram ==="
           ls -la submodules/TelegramUI/Components/PampGram
-          
-          echo "=== Отвергнутые куски патча (если есть) ==="
-          find . -name "*.rej" | head -30 || true
 
-      - name: Prepare build config
+      - name: Prepare fake codesigning + config
         working-directory: telegram-ios
         run: |
+          # Готовим фейковые профили
+          mkdir -p build-system/fake-codesigning/profiles
           mkdir -p build-input
+          
+          # Создаём пустые mobileprovision-файлы, которые требует BUILD
+          for name in NotificationService NotificationContent Share BroadcastUpload; do
+            touch "build-system/fake-codesigning/profiles/${name}.mobileprovision"
+          done
+          
           cat > build-input/data.json << 'EOF'
           {
             "bundle_id": "org.telegram.Telegram-iOS",
