@@ -33,17 +33,48 @@ jobs:
           if [ -f ../pampgram/mod/apply-profile-visuals.py ]; then
             python3 ../pampgram/mod/apply-profile-visuals.py || true
           fi
-          
-          echo "=== Компоненты PampGram ==="
-          ls -la submodules/TelegramUI/Components/PampGram
 
-      - name: Prepare fake codesigning
+      - name: Remove extensions that require provisioning profiles
+        working-directory: telegram-ios
+        run: |
+          # Убираем ссылки на расширения, которым нужны .mobileprovision
+          # Это позволяет собрать основной Telegram.app без реальных сертификатов
+          
+          python3 - << 'EOF'
+          import re
+
+          with open("Telegram/BUILD", "r") as f:
+              content = f.read()
+
+          # Удаляем/комментируем зависимости от расширений
+          extensions = [
+              "ShareExtension",
+              "NotificationServiceExtension",
+              "NotificationContentExtension",
+              "BroadcastUploadExtension",
+              "WidgetExtension",
+              "IntentsExtension",
+          ]
+
+          for ext in extensions:
+              # Убираем упоминания в deps
+              content = re.sub(rf',\s*":{ext}"', '', content)
+              content = re.sub(rf'":{ext}",\s*', '', content)
+              content = re.sub(rf'":{ext}"', '', content)
+
+          with open("Telegram/BUILD", "w") as f:
+              f.write(content)
+
+          print("Extensions references cleaned from Telegram/BUILD")
+          EOF
+
+      - name: Prepare build config
         working-directory: telegram-ios
         run: |
           mkdir -p build-input
           mkdir -p build-system/fake-codesigning/profiles
           
-          for name in Telegram NotificationService NotificationContent Share BroadcastUpload Widget Intents; do
+          for name in Telegram Share NotificationService NotificationContent BroadcastUpload Widget Intents; do
             touch "build-system/fake-codesigning/profiles/${name}.mobileprovision"
           done
           
